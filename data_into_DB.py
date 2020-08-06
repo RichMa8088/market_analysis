@@ -3,7 +3,6 @@
 # --------------------0、加载模块及初始化参数--------#
 # --加载常规模块
 from time import time
-import datetime
 import pandas as pd
 # --加载其他模块
 from read_csv_file import read_csv_file
@@ -18,7 +17,7 @@ pd.set_option('display.max_rows', 20)
 pd.set_option('display.max_columns', 30)
 pd.set_option('display.width', 500)
 missing_values = ['n/a', 'na', '--', 'Null', 'NULL', '\t']
-rootDir = '/home/rich/myfile/data/1行业相关数据/洗护清洁剂_卫生巾_纸_香薰/类目趋势'  # 输入根目录的路径
+rootDir = '/home/rich/myfile/data'  # 输入根目录的路径
 
 
 # --数据库类型字典
