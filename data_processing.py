@@ -32,7 +32,7 @@ conn = engine.connect()  # --连接数据库
 Base = declarative_base()  # --基类
 # --------------------0、读取参数文件中的参数-------------------------#
 pm_date = read_xlxs_file(rootDir, '参数表', missing_values, '日期范围', 0, 0, coding='utf-8')
-print(pm_date.info())
+# print(pm_date.info()) #读取日期范围参数
 '''
 # --------------------1、提取类目趋势数据-------------------------#
 sql_cg_trends = 'SELECT 类目名,月份,访客数,搜索人数,加购人数,支付人数,' \

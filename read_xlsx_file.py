@@ -21,7 +21,7 @@ def read_xlxs_file(file_dir, file_name_key, na_values, sheetname, header_rows, s
     df_xlxs = pd.DataFrame()
     for parent, DirNames, FileNames in os.walk(file_dir):
         for FileName in FileNames:
-            if FileName.__contains__('.xlxs'):
+            if FileName.__contains__('.xlsx'):
                 if FileName.__contains__(file_name_key):
                     xlxs1 = pd.read_excel(os.path.join(parent, FileName), sheet_name=sheetname,
                                           encoding=coding, skiprows=skiprows,
