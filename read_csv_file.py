@@ -3,6 +3,7 @@
 # --加载常规模块
 import os  # 文件路径
 import pandas as pd
+import numpy as np
 
 
 # --读取csv文件，根据关键字进行筛选，将选中的数据放入一个df
@@ -23,4 +24,5 @@ def read_csv_file(file_dir, file_name_key, missing_values, header_rows, coding):
             else:
                 continue
     df_csv.dropna(axis=0, how='all', inplace=True)
+    df_csv.replace(np.nan, 0, inplace=True)
     return df_csv
