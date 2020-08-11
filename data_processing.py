@@ -4,6 +4,7 @@
 from time import time
 import pandas as pd
 import numpy as np
+import itertools
 #
 from sqlalchemy import create_engine  # 引擎
 from sqlalchemy.ext.declarative import declarative_base  # 基类
@@ -35,7 +36,13 @@ pm_date = read_xlxs_file(rootDir, '参数表', missing_values, '日期范围', 0
 # print(pm_date.info())  # 读取日期范围参数
 
 pm_cg = read_xlxs_file(rootDir, '参数表', missing_values, '类目信息', 0, 0, coding='utf-8')
-# print(pm_cg.info())  # 读取日期范围参数
+# print(pm_cg.info())  # 读取类目信息参数
+
+pm_fq = read_xlxs_file(rootDir, '参数表', missing_values, '商品信息', 0, 0, coding='utf-8')
+# print(pm_fq.info())  # 读取商品信息参数
+
+pm_lb = read_xlxs_file(rootDir, '参数表', missing_values, '价格区间', 0, 0, coding='utf-8')
+# print(pm_lb.info())  # 读取价格区间参数
 
 # --------------------1、提取类目趋势数据-------------------------#
 sql_cg_trends = 'SELECT 类目,月份,访客数,搜索人数,加购人数,支付人数,' \
@@ -145,10 +152,8 @@ df_goods = pd.merge(df_goods, df_goods_ct, how='left', on=['类目', '月份', '
 # 合并参数信息
 df_goods = pd.merge(df_goods, pm_date, how='left', on='月份')
 df_goods = pd.merge(df_goods, pm_cg, how='left', left_on="类目", right_on="采集类目")
-df_goods = df_goods.loc[
-    df_goods['周期'].notnull(), ['对应类目', '类目简称', '周期', '绘图月份', '月份', '商品ID', '商品信息', '店铺',
-                               '访客人数', '搜索人数', '支付转化率', '加购人数', '交易金额']]
-df_goods.rename(columns={'访客人数': '访客数'}, inplace=True)
+df_goods = pd.merge(df_goods, pm_fq, how='left', on='商品ID')
+df_goods = df_goods.loc[df_goods['周期'].notnull()]
 # 缺失值处理
 mean_gp_goods = df_goods.loc[df_goods['支付转化率'].notnull(), ['商品ID', '支付转化率']]
 mean_v_goods = mean_gp_goods.groupby('商品ID').mean()
@@ -159,7 +164,7 @@ df_goods['支付转化率'] = np.where(df_goods['支付转化率_x'] > df_goods[
                              df_goods['支付转化率_x'], df_goods['支付转化率_y'])
 df_goods = df_goods.loc[df_goods['支付转化率'] > 0]
 #
-df_goods['加购率'] = df_goods['加购人数'] / df_goods['访客数']
+df_goods['加购率'] = df_goods['加购人数'] / df_goods['访客人数']
 mean_gp_goods_ct = df_goods.loc[df_goods['加购率'].notnull(), ['商品ID', '加购率']]
 mean_v_goods_ct = mean_gp_goods_ct.groupby('商品ID').mean()
 df_goods = pd.merge(df_goods, mean_v_goods_ct, how='left', on='商品ID')
@@ -168,27 +173,31 @@ df_goods = df_goods.fillna(value=fna_values)
 df_goods['加购率'] = np.where(df_goods['加购率_x'] > df_goods['加购率_y'],
                            df_goods['加购率_x'], df_goods['加购率_y'])
 # 增加新字段，四舍五入
-df_goods['支付人数'] = df_goods['访客数'] * df_goods['支付转化率']
-df_goods['客单价'] = df_goods['交易金额'] / (df_goods['访客数'] * df_goods['支付转化率'])
-df_goods['搜索占比'] = df_goods['搜索人数'] / df_goods['访客数']
+df_goods['支付人数'] = df_goods['访客人数'] * df_goods['支付转化率']
+df_goods['客单价'] = df_goods['交易金额'] / (df_goods['访客人数'] * df_goods['支付转化率'])
+df_goods['搜索占比'] = df_goods['搜索人数'] / df_goods['访客人数']
 rd_decimals = pd.Series([1, 2, 0, 4, 4], index=['客单价', '搜索占比', '支付人数', '加购率', '支付转化率'])
 df_goods = df_goods.round(rd_decimals)
-df_goods.drop(['支付转化率_x', '支付转化率_y', '加购率_x', '加购率_y', '加购人数'], axis=1, inplace=True)
-df_goods = df_goods.loc[(df_goods['客单价'] > 1) & (df_goods['访客数'] > 1)]
+df_goods.drop(
+    ['支付转化率_x', '支付转化率_y', '加购率_x', '加购率_y', '加购人数', '加购人数', '类目', '类目简称_y',
+     '商品信息_y', '类目', '采集类目'], axis=1, inplace=True)
+df_goods = df_goods.loc[(df_goods['客单价'] > 1) & (df_goods['访客人数'] > 1)]
+lm_names = pm_lb['对应类目'].drop_duplicates(keep='last')
+df_kd_fq = pd.Series(dtype=object)
+for lm_n in lm_names:
+    listBins0 = pm_lb.loc[pm_lb['对应类目'] == lm_n, ['值']].values.tolist()
+    listBins = list(itertools.chain.from_iterable(listBins0))
+    listLabels0 = pm_lb.loc[pm_lb['对应类目'] == lm_n, ['价格区间']].values.tolist()
+    listLabels = list(itertools.chain.from_iterable(listLabels0))
+    listLabels.remove('区间外')
+    lm_kd = df_goods.loc[df_goods['对应类目'] == lm_n, '客单价']
+    kd_fq = pd.cut(lm_kd, bins=listBins, labels=listLabels)
+    df_kd_fq = df_kd_fq.append(kd_fq)
+df_goods = pd.merge(df_goods, pd.DataFrame(df_kd_fq), how='left', left_index=True, right_index=True)
+df_goods.rename(columns={'访客人数': '访客数', '商品自定义分类': '自定义类别', '类目简称_x': '类目简称',
+                         '商品信息_x': '商品信息', 0: '客单区间'}, inplace=True)
 # print(df_goods.info())
 df_goods.to_csv('/home/rich/myfile/output/result3.csv', index=False)
-
-# 设置切分区域
-listBins = [0, 10, 20, 30, 40, 50, 60, 1000000]
-
-# 设置切分后对应标签
-listLabels = ['0_10', '11_20', '21_30', '31_40', '41_50', '51_60', '61及以上']
-
-# 利用pd.cut进行数据离散化切分
-"""
-pandas.cut(x,bins,right=True,labels=None,retbins=False,precision=3,include_lowest=False)
-x:需要切分的数据
-
 
 end_time = time()  # 计时结束
 print('运行时长： %f' % (end_time - start_time))  # 打印运行时长
