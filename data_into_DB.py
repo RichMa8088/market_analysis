@@ -283,6 +283,66 @@ df_goods_ct_rank = df_goods_ct_rank[['类目', '月份', '商品ID', '商品信�
 
 # print(df_goods_ct_rank.info())
 # df_goods_ct_rank.to_csv('/home/rich/myfile/output/temp.csv')
+
+# ----------------------------------------------------------------------------#
+# --------------------1、品牌排行数据读取并且处理--------#
+df_competitor_zb = read_csv_file(rootDir, '竞品分析', missing_values, 0, coding='utf-8')
+df_competitor_zb = df_competitor_zb.rename(
+    columns=lambda x: x.replace("'", "").replace('"', '').replace(" ", ""))
+# --字段处理
+df_competitor_zb = df_competitor_zb[
+    ['月份', '商品ID', '商品信息', '交易金额', '访客人数', '搜索人数', '收藏人数', '加购人数',
+     '支付人数', '支付件数', '客单价', '搜索占比', '支付转化率']]
+df_competitor_zb['支付转化率'].replace('%', '', regex=True, inplace=True)
+df_competitor_zb['搜索占比'].replace('%', '', regex=True, inplace=True)
+# 格式转化
+df_competitor_zb['月份'] = pd.to_datetime(df_competitor_zb['月份'])
+#
+df_competitor_zb['访客人数'] = df_competitor_zb['访客人数'].astype(int)
+df_competitor_zb['搜索人数'] = df_competitor_zb['搜索人数'].astype(int)
+df_competitor_zb['收藏人数'] = df_competitor_zb['收藏人数'].astype(int)
+df_competitor_zb['支付人数'] = df_competitor_zb['支付人数'].astype(int)
+df_competitor_zb['加购人数'] = df_competitor_zb['加购人数'].astype(int)
+df_competitor_zb['支付件数'] = df_competitor_zb['支付件数'].astype(int)
+df_competitor_zb['交易金额'] = df_competitor_zb['交易金额'].astype(float)
+df_competitor_zb['客单价'] = df_competitor_zb['客单价'].astype(float)
+df_competitor_zb['搜索占比'] = df_competitor_zb['搜索占比'].astype(float) / 100
+df_competitor_zb['支付转化率'] = df_competitor_zb['支付转化率'].astype(float) / 100
+# 保留最新的数据记录,去重复
+df_competitor_zb.sort_values(by=['商品ID', '月份'], ascending=True, inplace=True)
+df_competitor_zb = df_competitor_zb.reset_index(drop=True)
+df_competitor_zb = df_competitor_zb.drop_duplicates(subset=['商品ID', '月份'], keep='last')
+
+# print(df_competitor_zb.info())
+# df_competitor_zb.to_csv('/home/rich/myfile/output/temp.csv')
+
+# ----------------------------------------------------------------------------#
+# --------------------1、品牌排行数据读取并且处理--------#
+df_competitor_ly = read_csv_file(rootDir, '入店来源  竞品', missing_values, 0, coding='utf-8')
+df_competitor_ly = df_competitor_ly.rename(
+    columns=lambda x: x.replace("'", "").replace('"', '').replace(" ", ""))
+# --字段处理
+df_competitor_ly = df_competitor_ly[
+    ['日期', '商品ID', '流量来源', '交易金额', '访客人数', '支付人数', '客单价', '支付转化率']]
+df_competitor_ly['支付转化率'].replace('%', '', regex=True, inplace=True)
+df_competitor_ly.rename(columns={'日期': '月份'}, inplace=True)
+df_competitor_ly['月份'] = df_competitor_ly['月份'].str[0:10]
+# 格式转化
+df_competitor_ly['月份'] = pd.to_datetime(df_competitor_ly['月份'])
+#
+df_competitor_ly['访客人数'] = df_competitor_ly['访客人数'].astype(int)
+df_competitor_ly['支付人数'] = df_competitor_ly['支付人数'].astype(int)
+df_competitor_ly['交易金额'] = df_competitor_ly['交易金额'].astype(float)
+df_competitor_ly['客单价'] = df_competitor_ly['客单价'].astype(float)
+df_competitor_ly['支付转化率'] = df_competitor_ly['支付转化率'].astype(float) / 100
+# 保留最新的数据记录,去重复
+df_competitor_ly.sort_values(by=['商品ID', '流量来源', '月份'], ascending=True, inplace=True)
+df_competitor_ly = df_competitor_ly.reset_index(drop=True)
+df_competitor_ly = df_competitor_ly.drop_duplicates(subset=['商品ID', '流量来源', '月份'], keep='last')
+
+# print(df_competitor_ly.info())
+# df_competitor_ly.to_csv('/home/rich/myfile/output/temp.csv')
+
 # ----------------------------------------------------------------------------#
 # ----------------------将数据导入数据库------#
 
@@ -298,7 +358,11 @@ df_goods_ts_rank.to_sql(name='goods_transaction_rank', con=engine, if_exists='ap
                         dtype=mapping_df_types(df_goods_ts_rank))
 df_goods_ct_rank.to_sql(name='goods_cart_rank', con=engine, if_exists='append', index=False,
                         dtype=mapping_df_types(df_goods_ct_rank))
-
+df_competitor_zb.to_sql(name='competitor_index', con=engine, if_exists='append', index=False,
+                        dtype=mapping_df_types(df_competitor_zb))
+df_competitor_ly.to_sql(name='competitor_traffic', con=engine, if_exists='append', index=False,
+                        dtype=mapping_df_types(df_competitor_ly))
 # ----------------------------------------------------------------------------#
+
 end_time = time()  # 计时结束
 print('运行时长： %f' % (end_time - start_time))  # 打印运行时长
