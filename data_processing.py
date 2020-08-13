@@ -44,6 +44,22 @@ pm_fq = read_xlxs_file(rootDir, '参数表', missing_values, '商品信息', 0, 
 pm_lb = read_xlxs_file(rootDir, '参数表', missing_values, '价格区间', 0, 0, coding='utf-8')
 # print(pm_lb.info())  # 读取价格区间参数
 
+pm_jp = read_xlxs_file(rootDir, '参数表', missing_values, '竞品信息', 0, 0, coding='utf-8')
+# print(pm_jp.info())  # 读取竞品参数
+
+pm_gjc = read_xlxs_file(rootDir, '参数表', missing_values, '竞品关键词', 0, 0, coding='utf-8')
+# print(pm_gjc.info())  # 读取关键词参数
+
+pm_gjc_lb = read_xlxs_file(rootDir, '参数表', missing_values, '关键词分类', 0, 0, coding='utf-8')
+# print(pm_gjc_lb.info())  # 读取关键词参数
+
+pm_ly = read_xlxs_file(rootDir, '参数表', missing_values, '流量分类表', 0, 0, coding='utf-8')
+# print(pm_ly.info())  # 读取流量来源参数
+
+pm_tp = read_xlxs_file(rootDir, '参数表', missing_values, 'top品牌', 0, 0, coding='utf-8')
+# print(pm_tp.info())  # 读取流量来源参数
+
+
 # --------------------1、提取类目趋势数据-------------------------#
 sql_cg_trends = 'SELECT 类目,月份,访客数,搜索人数,加购人数,支付人数,' \
                 '交易金额 FROM market_analysis.category_trends'
@@ -63,12 +79,11 @@ df_cg_trends = df_cg_trends.round(rd_decimals)
 # 合并参数信息
 df_cg_trends = pd.merge(df_cg_trends, pm_date, how='left', on='月份')
 df_cg_trends = pd.merge(df_cg_trends, pm_cg, how='left', left_on="类目", right_on="采集类目")
-df_cg_trends = df_cg_trends.loc[
+op_cg_trends = df_cg_trends.loc[
     df_cg_trends['周期'].notnull(), ['对应类目', '类目简称', '周期', '绘图月份', '月份', '访客数', '搜索人数', '支付人数',
                                    '交易金额', '客单价', '搜索占比']]
 
 # print(df_cg_trends.info())
-df_cg_trends.to_csv('/home/rich/myfile/output/result1.csv', index=False)
 
 # --------------------1、提取品牌数据-------------------------#
 sql_brand_tf = 'SELECT 类目,月份,品牌,访客人数,搜索人数,' \
@@ -95,9 +110,10 @@ df_brand = pd.merge(df_brand_tf, df_brand_ts, how='left', on=['类目', '月份'
 # 合并参数信息
 df_brand = pd.merge(df_brand, pm_date, how='left', on='月份')
 df_brand = pd.merge(df_brand, pm_cg, how='left', left_on="类目", right_on="采集类目")
+df_brand = pd.merge(df_brand, pm_tp, how='left', left_on="品牌", right_on="重点品牌")
 df_brand = df_brand.loc[
-    df_brand['周期'].notnull(), ['对应类目', '类目简称', '周期', '绘图月份', '月份', '品牌', '访客人数', '搜索人数',
-                               '支付转化率', '交易金额_x']]
+    df_brand['周期'].notnull(), ['对应类目', '类目简称', '周期', '绘图月份', '月份', '品牌', '品牌分组', '访客人数',
+                               '搜索人数', '支付转化率', '交易金额_x']]
 df_brand.rename(columns={'交易金额_x': '交易金额', '访客人数': '访客数'}, inplace=True)
 
 # 缺失值处理
@@ -117,9 +133,8 @@ df_brand['搜索占比'] = df_brand['搜索人数'] / df_brand['访客数']
 rd_decimals = pd.Series([1, 2, 0, 4], index=['客单价', '搜索占比', '支付人数', '支付转化率'])
 df_brand = df_brand.round(rd_decimals)
 df_brand.drop(['支付转化率_x', '支付转化率_y', '标识_names'], axis=1, inplace=True)
-df_brand = df_brand.loc[(df_brand['客单价'] > 1) & (df_brand['访客数'] > 1)]
+op_brand = df_brand.loc[(df_brand['客单价'] > 1) & (df_brand['访客数'] > 1)]
 # print(df_brand.info())
-df_brand.to_csv('/home/rich/myfile/output/result2.csv', index=False)
 
 # --------------------1、提取商品数据-------------------------#
 sql_goods_tf = 'SELECT 类目,月份,商品ID,商品信息,店铺,访客人数,搜索人数,' \
@@ -193,11 +208,86 @@ for lm_n in lm_names:
     lm_kd = df_goods.loc[df_goods['对应类目'] == lm_n, '客单价']
     kd_fq = pd.cut(lm_kd, bins=listBins, labels=listLabels)
     df_kd_fq = df_kd_fq.append(kd_fq)
-df_goods = pd.merge(df_goods, pd.DataFrame(df_kd_fq), how='left', left_index=True, right_index=True)
-df_goods.rename(columns={'访客人数': '访客数', '商品自定义分类': '自定义类别', '类目简称_x': '类目简称',
+op_goods = pd.merge(df_goods, pd.DataFrame(df_kd_fq), how='left', left_index=True, right_index=True)
+op_goods.rename(columns={'访客人数': '访客数', '商品自定义分类': '自定义类别', '类目简称_x': '类目简称',
                          '商品信息_x': '商品信息', 0: '客单区间'}, inplace=True)
 # print(df_goods.info())
-df_goods.to_csv('/home/rich/myfile/output/result3.csv', index=False)
+# --------------------1、提取竞品数据-------------------------#
+sql_competitor_id = 'SELECT 月份,商品ID,访客人数,搜索人数,加购人数,支付人数,支付件数,' \
+                    '交易金额 FROM market_analysis.competitor_index'
+df_competitor_id = pd.read_sql_query(sql=sql_competitor_id, con=conn, coerce_float=True,
+                                     parse_dates=None)
+df_competitor_id = df_competitor_id.loc[df_competitor_id['交易金额'] > 0]
+# 去重复
+df_competitor_id.sort_values(by=['月份', '商品ID'], ascending=True, inplace=True)
+df_competitor_id = df_competitor_id.reset_index(drop=True)
+df_competitor_id = df_competitor_id.drop_duplicates(subset=['月份', '商品ID'], keep='last')
 
+# 合并参数信息
+op_competitor_id = pd.merge(df_competitor_id, pm_jp, how='left', on='商品ID')
+op_competitor_id.rename(columns={'访客人数': '访客数', '类别': '自定义类别'}, inplace=True)
+# print(df_competitor_id.info())
+
+# --------------------1、提取竞品数据-------------------------#
+sql_competitor_tf = 'SELECT 月份,商品ID,流量来源,访客人数,支付人数,' \
+                    '交易金额 FROM market_analysis.competitor_traffic'
+df_competitor_tf = pd.read_sql_query(sql=sql_competitor_tf, con=conn, coerce_float=True,
+                                     parse_dates=None)
+df_competitor_tf = df_competitor_tf.loc[df_competitor_tf['访客人数'] > 0]
+# 去重复
+df_competitor_tf.sort_values(by=['月份', '商品ID', '流量来源'], ascending=True, inplace=True)
+df_competitor_tf = df_competitor_tf.reset_index(drop=True)
+df_competitor_tf = df_competitor_tf.drop_duplicates(subset=['月份', '商品ID', '流量来源'], keep='last')
+
+# 合并参数信息
+df_competitor_tf = pd.merge(df_competitor_tf, pm_jp, how='left', on='商品ID')
+op_competitor_tf = pd.merge(df_competitor_tf, pm_ly, how='left', on='流量来源')
+op_competitor_tf.rename(columns={'访客人数': '访客数', '类别': '自定义类别'}, inplace=True)
+# print(df_competitor_tf.info())
+
+# --------------------1、提取关键词数据-------------------------#
+sql_keywords_rk = 'SELECT 类目,起始日期,关键词,搜索人数,点击人数,' \
+                  '支付人数 FROM market_analysis.keywords_rank'
+df_keywords_rk = pd.read_sql_query(sql=sql_keywords_rk, con=conn, coerce_float=True,
+                                   parse_dates=None)
+df_keywords_rk = df_keywords_rk.loc[df_keywords_rk['搜索人数'] > 0]
+# 去重复
+df_keywords_rk.sort_values(by=['起始日期', '类目', '关键词'], ascending=True, inplace=True)
+df_keywords_rk = df_keywords_rk.reset_index(drop=True)
+df_keywords_rk = df_keywords_rk.drop_duplicates(subset=['起始日期', '类目', '关键词'], keep='last')
+
+# 合并参数信息
+df_keywords_rk = pd.merge(df_keywords_rk, pm_cg, how='left', left_on="类目", right_on="采集类目")
+op_keywords_rk = pd.merge(df_keywords_rk, pm_gjc_lb, how='left', left_on="关键词", right_on="关键词")
+op_keywords_rk.drop(['类目', '采集类目'], axis=1, inplace=True)
+# print(df_keywords_rk.info())
+
+# --------------------1、提取关键词数据-------------------------#
+sql_keywords_td = 'SELECT 月份,关键词,搜索人数,点击人数,' \
+                  '支付人数,交易金额 FROM market_analysis.keywords_traffic'
+df_keywords_td = pd.read_sql_query(sql=sql_keywords_td, con=conn, coerce_float=True,
+                                   parse_dates=None)
+df_keywords_td = df_keywords_td.loc[df_keywords_td['搜索人数'] > 0]
+# 去重复
+df_keywords_td.sort_values(by=['月份', '关键词'], ascending=True, inplace=True)
+df_keywords_td = df_keywords_td.reset_index(drop=True)
+df_keywords_td = df_keywords_td.drop_duplicates(subset=['月份', '关键词'], keep='last')
+# 合并参数信息
+op_keywords_td = pd.merge(df_keywords_td, pm_gjc, how='left', left_on="关键词", right_on="关键词")
+op_keywords_td = pd.merge(op_keywords_td, pm_date, how='left', on='月份')
+# print(df_keywords_td.info())
+
+# --导出excel到本地
+writer = pd.ExcelWriter('/home/rich/myfile/output/汇总输出.xlsx')
+op_cg_trends.to_excel(writer, sheet_name='类目趋势', header=True, index=False)
+op_brand.to_excel(writer, sheet_name='类目品牌榜', header=True, index=False)
+op_goods.to_excel(writer, sheet_name='类目商品榜', header=True, index=False)
+op_keywords_rk.to_excel(writer, sheet_name='类目热搜词', header=True, index=False)
+op_keywords_td.to_excel(writer, sheet_name='类目核心词趋势', header=True, index=False)
+op_competitor_id.to_excel(writer, sheet_name='竞品指标', header=True, index=False)
+op_competitor_tf.to_excel(writer, sheet_name='竞品流量来源', header=True, index=False)
+writer.save()
+
+##############################
 end_time = time()  # 计时结束
 print('运行时长： %f' % (end_time - start_time))  # 打印运行时长

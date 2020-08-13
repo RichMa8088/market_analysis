@@ -74,7 +74,7 @@ df_cg_trends = df_cg_trends.reset_index(drop=True)
 df_cg_trends = df_cg_trends.drop_duplicates(subset=['类目', '月份'], keep='last')
 # print(df_cg_trends.info())
 # df_cg_trends.to_csv('/home/rich/myfile/output/temp.csv',index=False)
-
+'''
 # ----------------------------------------------------------------------------#
 # --------------------1、品牌排行数据读取并且处理--------#
 df_brand_tf_rank = read_csv_file(rootDir, '品牌 高流量排行', missing_values, 0, coding='utf-8')
@@ -344,10 +344,81 @@ df_competitor_ly = df_competitor_ly.drop_duplicates(subset=['商品ID', '流量�
 # df_competitor_ly.to_csv('/home/rich/myfile/output/temp.csv')
 
 # ----------------------------------------------------------------------------#
+# --------------------1、品牌排行数据读取并且处理--------#
+df_terms_td = read_csv_file(rootDir, '搜索词趋势', missing_values, 0, coding='utf-8')
+df_terms_td = df_terms_td.rename(
+    columns=lambda x: x.replace("'", "").replace('"', '').replace(" ", ""))
+# --字段处理
+df_terms_td = df_terms_td[['月份', '关键词', '搜索人数', '搜索次数', '点击率', '点击人数',
+                           '点击次数', '交易金额', '支付人数', '支付转化率', '客单价']]
+df_terms_td['支付转化率'].replace('%', '', regex=True, inplace=True)
+df_terms_td['点击率'].replace('%', '', regex=True, inplace=True)
+
+# 格式转化
+df_terms_td['月份'] = pd.to_datetime(df_terms_td['月份'])
+#
+df_terms_td['搜索人数'] = df_terms_td['搜索人数'].astype(int)
+df_terms_td['搜索次数'] = df_terms_td['搜索次数'].astype(int)
+df_terms_td['点击人数'] = df_terms_td['点击人数'].astype(int)
+df_terms_td['点击次数'] = df_terms_td['点击次数'].astype(int)
+df_terms_td['支付人数'] = df_terms_td['支付人数'].astype(int)
+df_terms_td['交易金额'] = df_terms_td['交易金额'].astype(float)
+df_terms_td['客单价'] = df_terms_td['客单价'].astype(float)
+df_terms_td['支付转化率'] = df_terms_td['支付转化率'].astype(float) / 100
+df_terms_td['点击率'] = df_terms_td['点击率'].astype(float) / 100
+# 保留最新的数据记录,去重复
+df_terms_td.sort_values(by=['关键词', '月份'], ascending=True, inplace=True)
+df_terms_td = df_terms_td.reset_index(drop=True)
+df_terms_td = df_terms_td.drop_duplicates(subset=['关键词', '月份'], keep='last')
+
+# print(df_terms_td.info())
+# df_terms_td.to_csv('/home/rich/myfile/output/temp.csv')
+
+# ----------------------------------------------------------------------------#
+# --------------------1、品牌排行数据读取并且处理--------#
+df_terms_rank = read_csv_file(rootDir, '热搜 排行', missing_values, 0, coding='utf-8')
+df_terms_rank = df_terms_rank.rename(
+    columns=lambda x: x.replace("'", "").replace('"', '').replace(" ", ""))
+
+# # --提取文件路径和下载时间信息
+df_terms_rank.reset_index(inplace=True, drop=True)
+df_terms_rank.reset_index(inplace=True)
+file_split = df_terms_rank['文件名'].str.split('】', expand=True)
+file_split.reset_index(inplace=True)
+file_split.drop([1], axis=1, inplace=True)
+file_split.rename(columns={0: '类目'}, inplace=True)
+df_terms_rank = pd.merge(df_terms_rank, file_split, how='left', on='index')
+# --字段处理
+df_terms_rank = df_terms_rank[['类目', '日期', '关键词', '排名', '搜索人数', '点击率', '点击人数',
+                               '支付人数', '支付转化率']]
+df_terms_rank['支付转化率'].replace('%', '', regex=True, inplace=True)
+df_terms_rank['点击率'].replace('%', '', regex=True, inplace=True)
+df_terms_rank['类目'].replace([r'\s+', '【'], ['', ''], regex=True, inplace=True)
+df_terms_rank.rename(columns={'日期': '起始日期', '排名': '热搜词排名'}, inplace=True)
+df_terms_rank['起始日期'] = df_terms_rank['起始日期'].str[0:10]
+# 格式转化
+df_terms_rank['起始日期'] = pd.to_datetime(df_terms_rank['起始日期'])
+#
+df_terms_rank['搜索人数'] = df_terms_rank['搜索人数'].astype(int)
+df_terms_rank['热搜词排名'] = df_terms_rank['热搜词排名'].astype(int)
+df_terms_rank['点击人数'] = df_terms_rank['点击人数'].astype(int)
+df_terms_rank['支付人数'] = df_terms_rank['支付人数'].astype(int)
+df_terms_rank['支付转化率'] = df_terms_rank['支付转化率'].astype(float) / 100
+df_terms_rank['点击率'] = df_terms_rank['点击率'].astype(float) / 100
+# 保留最新的数据记录,去重复
+df_terms_rank.sort_values(by=['类目', '关键词', '起始日期'], ascending=True, inplace=True)
+df_terms_rank = df_terms_rank.reset_index(drop=True)
+df_terms_rank = df_terms_rank.drop_duplicates(subset=['类目', '关键词', '起始日期'], keep='last')
+
+print(df_terms_rank.info())
+# df_terms_rank.to_csv('/home/rich/myfile/output/temp.csv')
+'''
+# ----------------------------------------------------------------------------#
 # ----------------------将数据导入数据库------#
 
 df_cg_trends.to_sql(name='category_trends', con=engine, if_exists='append', index=False,
                     dtype=mapping_df_types(df_cg_trends))
+'''
 df_brand_tf_rank.to_sql(name='brand_traffic_rank', con=engine, if_exists='append', index=False,
                         dtype=mapping_df_types(df_brand_tf_rank))
 df_brand_ts_rank.to_sql(name='brand_transaction_rank', con=engine, if_exists='append', index=False,
@@ -362,7 +433,11 @@ df_competitor_zb.to_sql(name='competitor_index', con=engine, if_exists='append',
                         dtype=mapping_df_types(df_competitor_zb))
 df_competitor_ly.to_sql(name='competitor_traffic', con=engine, if_exists='append', index=False,
                         dtype=mapping_df_types(df_competitor_ly))
+df_terms_td.to_sql(name='keywords_traffic', con=engine, if_exists='append', index=False,
+                   dtype=mapping_df_types(df_terms_td))
+df_terms_rank.to_sql(name='keywords_rank', con=engine, if_exists='append', index=False,
+                     dtype=mapping_df_types(df_terms_rank))
+'''
 # ----------------------------------------------------------------------------#
-
 end_time = time()  # 计时结束
 print('运行时长： %f' % (end_time - start_time))  # 打印运行时长
