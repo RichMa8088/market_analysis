@@ -32,8 +32,7 @@ pm_date = read_xlxs_file(rootDir, '参数表', missing_values, '日期范围', 0
 pm_cg = read_xlxs_file(rootDir, '参数表', missing_values, '类目信息', 0, 0, coding='utf-8')
 # print(pm_cg.info())  # 读取类目信息参数
 
-
-# --------------------1、提取类目趋势数据-------------------------#
+# ------------------
 sql_cg_trends = 'SELECT 类目,月份,访客数,搜索人数,加购人数,支付人数,交易金额 FROM market_analysis.category_trends'
 df_cg_trends = pd.read_sql_query(sql=sql_cg_trends, con=conn, coerce_float=True, parse_dates=None)
 df_cg_trends = df_cg_trends.loc[df_cg_trends['交易金额'] > 0]
@@ -52,10 +51,10 @@ df_cg_trends = pd.merge(df_cg_trends, pm_date, how='left', on='月份')
 df_cg_trends = pd.merge(df_cg_trends, pm_cg, how='left', left_on="类目", right_on="采集类目")
 op_cg_trends = df_cg_trends.loc[
     df_cg_trends['周期'].notnull(), ["类目", '对应类目', '类目简称', '周期', '绘图月份', '月份', '访客数',
-                                   '搜索人数', '支付人数', '交易金额', '客单价', '搜索占比']]
-# print(df_cg_trends.info())
+                                   '搜索人数', '支付人数', '交易金额']]
+print(op_cg_trends.info())
 # --导出excel到本地
-writer = pd.ExcelWriter('/home/rich/myfile/output/汇总输出.xlsx')
+writer = pd.ExcelWriter('/home/rich/myfile/output/行业类目趋势.xlsx')
 op_cg_trends.to_excel(writer, sheet_name='类目趋势', header=True, index=False)
 writer.save()
 
