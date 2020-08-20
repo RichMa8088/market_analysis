@@ -6,7 +6,6 @@
 from time import time
 import pandas as pd
 # --加载其他模块
-from read_csv_file import read_csv_file
 from pre_category import pre_category_trends
 from pre_brand_rank import pre_brand_tf_rank, pre_brand_ts_rank
 from pre_goods_rank import pre_goods_tf_rank, pre_goods_ts_rank, pre_goods_ct_rank
@@ -22,7 +21,7 @@ pd.set_option('display.max_rows', 20)
 pd.set_option('display.max_columns', 30)
 pd.set_option('display.width', 500)
 missing_values = ['n/a', 'na', '--', 'Null', 'NULL', '\t', 'NaN']
-rootDir = '/home/rich/myfile/data'  # 输入根目录的路径
+rootDir = '/home/rich/myfile/data/1market_data'  # 输入根目录的路径
 
 
 # --数据库类型字典
